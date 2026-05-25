@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 
+
 # for panads df
 ## panads df analysis
 def columns_consistency(df, column1, column2, *, bidirectional=True, return_number=False):
@@ -79,27 +80,6 @@ def drop_columns_by_na_threshold(df, threshold):
 
 
 # conversion json-df
-## helper for json_to_df
-def get_deep(dic, path):
-    '''
-    Helper function that takes in input:
-    - a dictionary
-    - a path to a value of the dictionary, colon separated
-    and returns the corresponding value, even if the key:value pair is nested inside the dictionary
-
-    For example, running the function on `d = {'ext': {'int': 'val'}}`:
-    - get_deep(d, 'ext') -> {'int': 'val'}
-    - get_deep(d, 'ext:int') -> 'val'
-    '''
-    
-    current = dic
-    for key in path.split(':'):
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return None
-    return current
-
 ## json to dict converter
 def json_to_df(json_files_dict, json_filenames, *, just_external=False, transm_field=None, external_json_fields=[], transm_inst_fields=[]):
     '''
@@ -174,8 +154,113 @@ def json_to_df(json_files_dict, json_filenames, *, just_external=False, transm_f
 
 
 # for json
+## dig into a dictionary
+## helper for json_to_df and get_all_field_values
+def get_deep(dic, path):
+    '''
+    Helper function that takes in input:
+    - a dictionary
+    - a path to a value of the dictionary, dot separated
+    and returns the corresponding value, even if the key:value pair is nested inside the dictionary
+
+    For example, running the function on `d = {'ext': {'int': 'val'}}`:
+    - get_deep(d, 'ext') -> {'int': 'val'}
+    - get_deep(d, 'ext:int') -> 'val'
+    '''
+    
+    current = dic
+
+    for key in path.split('.'):
+        if isinstance(current, dict):
+            if key in current:
+                current = current[key]
+            else:
+                return None
+                
+        elif isinstance(current, list):
+            try:
+                index = int(key)
+                current = current[index]
+            except:
+                return None
+        else:
+            return None
+
+    return current
+
+## 
+def get_all_field_values(json_files_dict, json_filenames, field_to_check, *, to_list=True, ids=True):
+    '''
+    Takes in input:
+    - a dictionary {json_filename: json_file_content}
+    - a list of json filenames
+    - the "deep" field with the value to fetch
+    - the option to_list
+    - the option ids
+
+    Returns
+    - a list with all the values found (default)
+    - if to_list=False, a dictionary that maps all the values found to the json file and instance where they are found
+        if ids == True, instances are the transmission's instance ids (default)
+        if ids == False, instances are the transmission's instance positions in the list
+        for example: {value1: {json_file1: [instances]}}
+    '''
+    values = {}
+
+    # Detect if the required field is external or internal of transmission
+    transmissions = ['SpO2Transmission', 'WeightTransmission', 'BloodPressureTransmission']
+    transm_to_check = field_to_check.split('.')[1]
+    if transm_to_check in transmissions:
+
+        # Iterates over the jsons
+        for json_name in json_filenames:
+
+            # transmissions will be a dict that contains the actual "transmissions" field of the json
+            # {transm_to_check: content}
+            transmissions = json_files_dict[json_name].get('transmissions', {})
+
+            # If the transmission field to check is present in the json:
+            # Place in instances the complete list of instances of the transm_to_check
+            if transm_to_check in transmissions:
+                instances = transmissions[transm_to_check][0]
+
+                # Iterate over the long list of the instances and set:
+                # - t_position as the transmission field instance's position
+                # - t_instance as the the transmission field's instance itself
+                for t_position, t_instance in enumerate(instances):
+
+                    # Get the wanted value
+                    # TODO: controllare se qualcosa potrebbe andare storto se il valore non c'è nei different jsons
+                    value = get_deep(json_files_dict[json_name], field_to_check) # Can be improved by giving instance instead of json_files_dict
+
+                    # If the value has not been encountered yet, initialize a dict for it
+                    if value not in values:
+                        values[value] = {}
+
+                    # If is the first time that the value is encountered in the json, initialize a list for it
+                    if json_name not in values[value]:
+                        values[value][json_name] = []
+
+                    # Place the value in the appropriate list in the dictionary
+                    if ids == True:
+                        current_id = t_instance['id']
+                        values[value][json_name].append(current_id)
+                    else:
+                        values[value][json_name].append(t_position)
+
+
+    else:
+        for json_name in json_filenames:
+            value = get_deep(json_files_dict[json_name], field_to_check)
+            values.setdefault(value, []).append(json_name)
+
+    if to_list == True:
+        return list(values)
+    else:
+        return values
+
 ## pretty print jsons
-def pretty_print_folder(input_dir, output_dir):
+def pretty_print_folder(input_dir, output_dir, indent=2):
     os.makedirs(output_dir, exist_ok=True)
 
     for filename in os.listdir(input_dir):
@@ -183,10 +268,10 @@ def pretty_print_folder(input_dir, output_dir):
             data = json.load(file)
 
         name = filename[:-5]  # strip ".json"
-        out_path = os.path.join(output_dir, f"{name}-pp.json")
+        out_path = os.path.join(output_dir, f"{name}-pp-{indent}.json")
 
         with open(out_path, "w", encoding="utf-8") as file:
-            json.dump(data, file, indent=2, ensure_ascii=False, sort_keys=False)
+            json.dump(data, file, indent=indent, ensure_ascii=False, sort_keys=False)
 
 ## returns the structure of a field in a json/dictionary
 ### simple variant
@@ -255,7 +340,7 @@ def get_sample(json_files_dict, json_filenames, field_to_check, *, as_structure=
     return show_structure_digger(instance)
 
 ## returns overview of the consistency of a field among json files
-def overview_of_field(json_files_dict, json_filenames, field_to_check, sample_instance, *, position=True):
+def overview_of_field(json_files_dict, json_filenames, transm_to_check, sample_instance, *, instance=False, ids=False):
     '''
     Takes in input:
     - a dictionary {json_filename: json_file_content}
@@ -266,8 +351,9 @@ def overview_of_field(json_files_dict, json_filenames, field_to_check, sample_in
 
     Returns an overview dictionary {'different': {json_file: [position, ...]}, 'missing': [json_files]} that tells:
     - given a json file which have the field different from the sample one:
-        - the instance's position within the file, if position=True (default behaviour)
-        - the actual instance structure, if position=False
+        - the instance's position within the file, if instance == False (default behaviour)
+        - the instance's if field, if ids == True
+        - the actual instance structure, if instance == True
     - which json files misses the transmission subfield to check
     '''
 
@@ -279,20 +365,20 @@ def overview_of_field(json_files_dict, json_filenames, field_to_check, sample_in
     for json_name in json_filenames:
 
         # transmissions will be a dict that contains the actual "transmissions" field of the json
-        # {field_to_check: content}
+        # {transm_to_check: content}
         transmissions = json_files_dict[json_name].get('transmissions', {})
 
         # If the transmission field to check is NOT present:
         # Append the json name to the missing list ...
-        # .. and go directly to the next json file 
-        if field_to_check not in transmissions:
+        # .. and go directly to the next json file
+        if transm_to_check not in transmissions:
             overview['missing'].append(json_name)
             continue
-        
+
         # If the transmission field to check is present in the json:
 
-        # Place in instances the complete list of instances of the field_to_check
-        instances = transmissions[field_to_check][0]
+        # Place in instances the complete list of instances of the transm_to_check
+        instances = transmissions[transm_to_check][0]
 
         # Iterate over the long list of the instances and set:
         # - t_position as the transmission field instance's position
@@ -306,9 +392,16 @@ def overview_of_field(json_files_dict, json_filenames, field_to_check, sample_in
             if sample_instance != instance_structure:
 
                 # Set value as:
-                # - t_position if show_positions is True (default)
-                # - instance_structure if show_positions is False
-                value = t_position if position else instance_structure
+                # - t_position if instance == False (default)
+                # - t_instance id if ids == True
+                # - instance_structure if instance == True
+                if instance == False:
+                    if ids == False:
+                        value = t_position
+                    else:
+                        value = t_instance['id']
+                else:
+                    value = instance_structure
 
                 # Add the desired value to the different dictionary
                 overview['different'].setdefault(json_name, []).append(value)
