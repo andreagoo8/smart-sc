@@ -80,28 +80,49 @@ def drop_columns_by_na_threshold(df, threshold):
 
 
 # conversion json-df
+## helper for json to dict converter
+def compress_field_path(field_path, letters=1):
+    '''
+    Takes in input a path to a value of a dictionary, dot separated
+
+    returns the same path, but all the elements except the last are compressed
+    to the specified number of letters
+    '''
+
+    compressed = ''
+
+    elements = field_path.split('.')
+    for element in elements[:-1]:
+        compressed += f'{element[:letters]}.'
+    compressed += elements[-1]
+    
+    return compressed
+
+
 ## json to dict converter
 def json_to_df(json_files_dict, json_filenames,
-    external_json_fields=[], instance_common_fields=[], transm_specific_fields=[],
-    *, keep_NA=False, just_external=False, transm_field=None, 
+    transm_field=None, external_json_fields=[], instance_common_fields=[], transm_specific_fields=[],
+    *, letters=None, keep_NA=False, just_external=False,
 ):
     '''
     Takes in input:
     - a dictionary {json_filename: json_file_content}
     - a list of json filenames
-    - the just_external bool option
     - the transmission subfield to check
     - the external fields common to every json file
-    - the fields internal to the transmission subfield to check
+    - the list of transmission fields common (by key) to every instance
+    - the list of transmission fields specific (by key) for every instance
+
+    optional parameters:
+    - letters: if given with an int number, compresses the field names to the given amount of letters
+    - keep_NA: if True (NOT default), adds a row of NA values for every json that lacks the given transmission subfield to check
+    - just_external: if True (NOT default), adds to the df only the fields external to the transmission field
 
     Iterates over the json files and the transmission field instances
 
     Returns a list containing dictionaries, where each one carries the informations
     of every instance of a specific transmission field,
     merged with the informations of the json itself
-
-    If just_external is True, returns just the external informations of the json
-    (number of rows will be equal to the number of json files)
     '''
 
     data = []
@@ -140,9 +161,17 @@ def json_to_df(json_files_dict, json_filenames,
             # if keep_NA == True, adds a row of NAs for the instance fields
             else:
                 for field in instance_common_fields:
-                    helper_dict[f'instance.{field}'] = pd.NA
+                    if letters is not None:
+                        col_name = compress_field_path(field, letters=letters)
+                    else:
+                        col_name = f'inst.{field}'
+                    helper_dict[col_name] = pd.NA
                 for field in transm_specific_fields:
-                    helper_dict[field] = pd.NA
+                    if letters is not None:
+                        col_name = compress_field_path(field, letters=letters)
+                    else:
+                        col_name = f'inst.{field}'
+                    helper_dict[col_name] = pd.NA
                 data.append(helper_dict)
                 continue
 
@@ -158,18 +187,32 @@ def json_to_df(json_files_dict, json_filenames,
             # Iterates over the list of transmission fields common (by key) to every instance
             for field in instance_common_fields:
 
-               # Gets the value of the required field ... 
+                # Gets the value of the required field ... 
                 value = get_deep(instance, field)
+
                 # and puts it into the instance_helper_dict
-                instance_helper_dict[f'instance.{field}'] = value
+                # choosing, as key, the compressed string...
+                if letters is not None:
+                    col_name = compress_field_path(field, letters=letters)
+                # ... or the semi-original one
+                else:
+                    col_name = f'inst.{field}'
+                instance_helper_dict[col_name] = value
 
             # Iterates over the list of transmission fields specific (by key) for every instance
             for field in transm_specific_fields:
 
-               # Gets the value of the required field ... 
+                # Gets the value of the required field ... 
                 value = get_deep(instance, field)
+
                 # and puts it into the instance_helper_dict
-                instance_helper_dict[field] = value
+                # choosing, as key, the compressed string...
+                if letters is not None:
+                    col_name = compress_field_path(field, letters=letters)
+                # ... or the semi-original one
+                else:
+                    col_name = f'inst.{field}'
+                instance_helper_dict[col_name] = value
 
 
             # Appends the data to the initial list
