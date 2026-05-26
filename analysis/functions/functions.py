@@ -81,7 +81,10 @@ def drop_columns_by_na_threshold(df, threshold):
 
 # conversion json-df
 ## json to dict converter
-def json_to_df(json_files_dict, json_filenames, *, just_external=False, transm_field=None, external_json_fields=[], transm_inst_fields=[]):
+def json_to_df(json_files_dict, json_filenames,
+    external_json_fields=[], instance_common_fields=[], transm_specific_fields=[],
+    *, keep_NA=False, just_external=False, transm_field=None, 
+):
     '''
     Takes in input:
     - a dictionary {json_filename: json_file_content}
@@ -113,7 +116,7 @@ def json_to_df(json_files_dict, json_filenames, *, just_external=False, transm_f
         # common to every instance of a transmission
         helper_dict = {}
 
-        # Iterates over a list of external fields
+        # Iterates over the list of external json fields
         for field in external_json_fields:
 
             # Gets the value of the required field ...
@@ -127,9 +130,21 @@ def json_to_df(json_files_dict, json_filenames, *, just_external=False, transm_f
             data.append(helper_dict)
             continue
 
-        # TODO: Maybe is better to place NAs?
+        # If the transmission field to check is NOT present:
         if transm_field not in current_json['transmissions']:
-            continue
+
+            # if keep_NA == False (default), skips the json
+            if keep_NA == False:
+                continue
+
+            # if keep_NA == True, adds a row of NAs for the instance fields
+            else:
+                for field in instance_common_fields:
+                    helper_dict[f'instance.{field}'] = pd.NA
+                for field in transm_specific_fields:
+                    helper_dict[field] = pd.NA
+                data.append(helper_dict)
+                continue
 
         # list containing all the instances of a transmission field
         instances = current_json['transmissions'][transm_field][0]
@@ -138,14 +153,24 @@ def json_to_df(json_files_dict, json_filenames, *, just_external=False, transm_f
             # Makes a copy of the common dictionary,
             # to allow to replace it at every loop
             instance_helper_dict = helper_dict.copy()
-            
-            # Iterates over a list of internal transmission fields
-            for field in transm_inst_fields:
+
+
+            # Iterates over the list of transmission fields common (by key) to every instance
+            for field in instance_common_fields:
+
+               # Gets the value of the required field ... 
+                value = get_deep(instance, field)
+                # and puts it into the instance_helper_dict
+                instance_helper_dict[f'instance.{field}'] = value
+
+            # Iterates over the list of transmission fields specific (by key) for every instance
+            for field in transm_specific_fields:
 
                # Gets the value of the required field ... 
                 value = get_deep(instance, field)
                 # and puts it into the instance_helper_dict
                 instance_helper_dict[field] = value
+
 
             # Appends the data to the initial list
             data.append(instance_helper_dict)
