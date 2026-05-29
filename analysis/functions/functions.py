@@ -53,16 +53,18 @@ def columns_consistency(df, column1, column2, *, bidirectional=True, return_numb
     return outliers
 
 ## panads df modification
-def drop_columns_by_na_threshold(df, threshold):
+def drop_columns_by_na_threshold(df, threshold, return_names=False):
     '''
     Drops columns where the percentage of missing values exceeds threshold.
 
     Takes in input:
     - the dataframe
     - a float threshold between 0 and 1 (e.g., 0.3 for 30%)
+    - the boolean option return_number (default False)
 
     Returns:
-    - dataframe with columns dropped
+    - dataframe with columns dropped (default)
+    - just the list of high-NA percentage columns (if return_names=True)
     '''
 
     cols_to_drop = []
@@ -76,7 +78,10 @@ def drop_columns_by_na_threshold(df, threshold):
 
     df = df.drop(columns=cols_to_drop)
 
-    return df
+    if return_names == False:
+        return df
+    else:
+        return cols_to_drop
 
 
 # conversion json-df
