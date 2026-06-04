@@ -1,5 +1,7 @@
 import os
 import json
+import re
+from datetime import time
 # from pathlib import Path
 
 from collections.abc import Mapping, Sequence
@@ -86,6 +88,50 @@ def drop_columns_by_na_threshold(df, threshold, return_names=False):
     else:
         return cols_to_drop
 
+## Filters a dataframe by a datetime column using a start and/or end bound.
+def df_filter_by_date(df, datecol, *, start=None, end=None):
+    '''
+    Filters a dataframe by a datetime column using a start and/or end bound.
+
+    Takes in input:
+    - the dataframe
+    - the name of the datetime column to filter on
+    - the keyword-only string start (default None): a date ('YYYY-MM-DD') or time ('HH:MM:SS') lower bound (inclusive)
+    - the keyword-only string end (default None): a date ('YYYY-MM-DD') or time ('HH:MM:SS') upper bound (inclusive)
+
+    If start/end are dates, rows are kept where the datetime falls within the range.
+    If start/end are times, rows are kept where the time-of-day falls within the range, regardless of the date.
+    Both bounds are inclusive: a value equal to start or end is kept.
+
+    Returns:
+    - the filtered dataframe
+    '''
+
+    mask = pd.Series(True, index=df.index)
+
+    if start is not None or end is not None:
+
+        # Check if the column is a proper datetime64 column
+        if not pd.api.types.is_datetime64_any_dtype(df[datecol]):
+            raise TypeError(f'Column "{datecol}" is not a datetime column')
+
+        def is_time_str(s):
+            return s is not None and bool(re.fullmatch(r'\d{2}:\d{2}:\d{2}', s))
+
+        if is_time_str(start) or is_time_str(end):
+            times = df[datecol].dt.time
+            if start is not None:
+                mask &= (times >= time.fromisoformat(start))
+            if end is not None:
+                mask &= (times <= time.fromisoformat(end))
+        else:
+            tz = df[datecol].dt.tz
+            if start is not None:
+                mask &= (df[datecol] >= pd.Timestamp(start).tz_localize(tz))
+            if end is not None:
+                mask &= (df[datecol] <= pd.Timestamp(end).tz_localize(tz))
+
+    return df[mask]
 
 # conversion json-df
 ## helper for json to dict converter
