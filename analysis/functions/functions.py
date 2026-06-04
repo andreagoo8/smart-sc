@@ -4,13 +4,16 @@ import json
 
 from collections.abc import Mapping, Sequence
 
+# So that get_deep can have the " -> Any", and json_to_df not complains when transforming to datetime64
+from typing import Any
+
 import numpy as np
 import pandas as pd
 
 
 
-# for panads df
-## panads df analysis
+# for pandas df
+## pandas df analysis
 def columns_consistency(df, column1, column2, *, bidirectional=True, return_number=False):
     '''
     Finds inconsistency between two columns.
@@ -52,7 +55,7 @@ def columns_consistency(df, column1, column2, *, bidirectional=True, return_numb
 
     return outliers
 
-## panads df modification
+## pandas df modification
 def drop_columns_by_na_threshold(df, threshold, return_names=False):
     '''
     Drops columns where the percentage of missing values exceeds threshold.
@@ -105,20 +108,22 @@ def compress_field_path(field_path, letters=1):
 
 
 ## json to dict converter
-def json_to_df(json_files_dict, json_filenames,
+def json_to_df(json_files_dict, json_filenames, date_fields,
     transm_field=None, external_json_fields=[], instance_common_fields=[], transm_specific_fields=[],
-    *, letters=None, keep_NA=False, just_external=False,
+    *, parse_dates=True, letters=None, keep_NA=False, just_external=False,
 ):
     '''
     Takes in input:
     - a dictionary {json_filename: json_file_content}
     - a list of json filenames
+    - a list of date fields to convert to pandas datetime64
     - the transmission subfield to check
     - the external fields common to every json file
     - the list of transmission fields common (by key) to every instance
     - the list of transmission fields specific (by key) for every instance
 
     optional parameters:
+    - parse_dates: if True (default), parse all date fields to proper pandas datetime64 format
     - letters: if given with an int number, compresses the field names to the given amount of letters
     - keep_NA: if True (NOT default), adds a row of NA values for every json that lacks the given transmission subfield to check
     - just_external: if True (NOT default), adds to the df only the fields external to the transmission field
@@ -147,6 +152,13 @@ def json_to_df(json_files_dict, json_filenames,
 
             # Gets the value of the required field ...
             value = get_deep(current_json, field)
+
+            # If parse_dates == True (default) ...
+            # ... and field is a date field ...
+            # ... convert value to pandas datetime64 format
+            if (parse_dates == True) and (field in date_fields):
+                value = pd.to_datetime(value)
+
             # and puts it into the helper_dict
             helper_dict[field] = value
 
@@ -195,6 +207,12 @@ def json_to_df(json_files_dict, json_filenames,
                 # Gets the value of the required field ... 
                 value = get_deep(instance, field)
 
+                # If parse_dates == True (default) ...
+                # ... and field is a date field ...
+                # ... convert value to pandas datetime64 format
+                if (parse_dates == True) and (field in date_fields):
+                    value = pd.to_datetime(value)
+
                 # and puts it into the instance_helper_dict
                 # choosing, as key, the compressed string...
                 if letters is not None:
@@ -209,6 +227,12 @@ def json_to_df(json_files_dict, json_filenames,
 
                 # Gets the value of the required field ... 
                 value = get_deep(instance, field)
+
+                # If parse_dates == True (default) ...
+                # ... and field is a date field ...
+                # ... convert value to pandas datetime64 format
+                if (parse_dates == True) and (field in date_fields):
+                    value = pd.to_datetime(value)
 
                 # and puts it into the instance_helper_dict
                 # choosing, as key, the compressed string...
@@ -229,7 +253,7 @@ def json_to_df(json_files_dict, json_filenames,
 # for json
 ## dig into a dictionary
 ## helper for json_to_df and get_all_field_values
-def get_deep(dic, path):
+def get_deep(dic, path) -> Any:
     '''
     Helper function that takes in input:
     - a dictionary
