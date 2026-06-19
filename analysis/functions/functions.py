@@ -48,7 +48,7 @@ def columns_consistency(df, column1, column2, *, bidirectional=True, return_numb
 
         # Element-wise logical OR between the two masks
         mask = mask_12 | mask_21
-    
+
     # Returns only the two involved columns and the rows where inconsistencies are found
     outliers = df[mask][[column1, column2]]
 
@@ -149,7 +149,7 @@ def compress_field_path(field_path, letters=1):
     for element in elements[:-1]:
         compressed += f'{element[:letters]}.'
     compressed += elements[-1]
-    
+
     return compressed
 
 
@@ -185,8 +185,8 @@ def json_to_df(json_files_dict, json_filenames, date_fields,
 
     # Iterates over the jsons
     for json_name in json_filenames:
-        
-        # current_json is 
+
+        # current_json is
         current_json = json_files_dict[json_name]
 
         # Dictionary containing all the "external" information of a json,
@@ -250,7 +250,7 @@ def json_to_df(json_files_dict, json_filenames, date_fields,
             # Iterates over the list of transmission fields common (by key) to every instance
             for field in instance_common_fields:
 
-                # Gets the value of the required field ... 
+                # Gets the value of the required field ...
                 value = get_deep(instance, field)
 
                 # If parse_dates == True (default) ...
@@ -271,7 +271,7 @@ def json_to_df(json_files_dict, json_filenames, date_fields,
             # Iterates over the list of transmission fields specific (by key) for every instance
             for field in transm_specific_fields:
 
-                # Gets the value of the required field ... 
+                # Gets the value of the required field ...
                 value = get_deep(instance, field)
 
                 # If parse_dates == True (default) ...
@@ -310,7 +310,7 @@ def get_deep(dic, path) -> Any:
     - get_deep(d, 'ext') -> {'int': 'val'}
     - get_deep(d, 'ext:int') -> 'val'
     '''
-    
+
     current = dic
 
     for key in path.split('.'):
@@ -319,7 +319,7 @@ def get_deep(dic, path) -> Any:
                 current = current[key]
             else:
                 return None
-                
+
         elif isinstance(current, list):
             try:
                 index = int(key)
@@ -331,7 +331,7 @@ def get_deep(dic, path) -> Any:
 
     return current
 
-## 
+##
 def get_all_field_values(json_files_dict, json_filenames, field_to_check, *, to_list=True, ids=True):
     '''
     Takes in input:
@@ -437,7 +437,7 @@ def show_structure_digger(data):
     '''Takes in input a dictionary and returns a version of it where:
     - keys are kept unchanged
     - values are substituted with the type name (iterable are analyzed recursively)'''
-    
+
     if isinstance(data, Mapping):
         result = {}
         for key, val in data.items():
