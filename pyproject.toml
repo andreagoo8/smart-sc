@@ -1,0 +1,15 @@
+[build-system]
+requires = ['setuptools', 'setuptools-scm']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'smartsc'
+dynamic = ['version']
+
+[tool.setuptools]
+py-modules = ['foldersfiles', 'functions']
+
+[tool.setuptools.package-dir]
+'' = 'utils'
+
+[tool.setuptools_scm]
