@@ -1,17 +1,44 @@
+import foldersfiles as ff
+
 import os
 import json
 import re
 from datetime import time
+import pickle
 # from pathlib import Path
 
 from collections.abc import Mapping, Sequence
+from collections import Counter
 
 # So that get_deep can have the " -> Any", and json_to_df not complains when transforming to datetime64
 from typing import Any
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
+
+
+# export functions for excel-based datasets (first 3)
+def export_func(df, filename, filetype=[], pseudopaz=''):
+
+    # Parquet
+    if 'parquet' in filetype:
+        df.to_parquet(ff.PROCESSED_DATA_DIR / ff.PARQUETS / f'{filename}.parquet')
+
+    # Pickle
+    if 'pickle' in filetype:
+        df.to_pickle(ff.PROCESSED_DATA_DIR / ff.PICKLES / f'{filename}.pickle')
+
+        if pseudopaz != '':
+            df[pseudopaz].to_pickle(ff.PROCESSED_DATA_DIR / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp.pickle')
+            df[pseudopaz].drop_duplicates().to_pickle(ff.PROCESSED_DATA_DIR / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp-uniq.pickle')
+            with open(ff.PROCESSED_DATA_DIR / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp-uniq-list.pickle', 'wb') as file:
+                pickle.dump(df[pseudopaz].drop_duplicates().tolist(), file, protocol=pickle.HIGHEST_PROTOCOL)
+
+    # Excel
+    if 'excel' in filetype:
+        df.to_excel(ff.PROCESSED_DATA_DIR / ff.EXCELS / f'{filename}.xlsx', sheet_name=ff.ESCRIBE, index=False)
 
 
 # for pandas df
@@ -581,3 +608,151 @@ def compare_general_jsons(json_files_dict, json_filenames, sample_json_name, *, 
                 different_general_jsons.append(current_json)
 
     return different_general_jsons
+
+
+# export figures
+## bar plot
+def bar_plot(ser,
+    title, x_label, y_label,
+    dataset, progr, output_name, output_format,
+    *, kind='unknown', label_limit=100,
+    savefig=False):
+
+    if kind == 'unknown':
+        raise Exception(f'Kind {kind} not valid')
+
+    # Create figure
+    fig, ax = plt.subplots()
+    bars = ax.bar(ser.index.astype(str), ser.values)
+    ax.bar_label(bars,
+        labels=np.where(ser.values < label_limit, ser.values, ''),
+        fontsize=9
+    )
+
+    if kind == 'date':
+        pass
+        # fig.autofmt_xdate()
+    elif kind == 'time':
+        pass
+        # ax.set_xticks(ser.index)
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+
+    plt.tight_layout()
+
+    if savefig:
+        plt.savefig(ff.FIGURES_DIR / dataset / f'{dataset}-{progr}-{output_name}.{output_format}', dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+## line plot
+def line_plot(ser,
+    title, x_label, y_label,
+    dataset, progr, output_name, output_format,
+    savefig=False):
+
+    original_len = len(ser)
+    data = ser.dropna()
+    na_count = original_len - len(data)
+
+    per_year = data.dt.year.value_counts().sort_index()
+
+    # Create figure
+    fig, ax = plt.subplots()
+    ax.plot(per_year.index, per_year.values)
+
+    ax.set_title(title)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+
+
+    n_total = original_len
+    n_valid = len(data)
+
+    ax.text(
+        0.98, 0.95,
+        f'n = {n_valid} (of {n_total})\n{round((n_valid/n_total)*100)} %',
+        transform=ax.transAxes,
+        ha='right', va='top',
+        fontsize=11
+    )
+
+    plt.tight_layout()
+
+    if savefig:
+        plt.savefig(ff.FIGURES_DIR / dataset / f'{dataset}-{progr}-{output_name}.{output_format}', dpi=300, bbox_inches='tight')
+
+    plt.show()
+
+## histbox_plot
+def histbox_plot(ser,
+    title, x_label, y_label,
+    dataset, progr, output_name, output_format,
+    figsize, bins='auto',
+    savefig=False):
+
+    original_len = len(ser)
+    data = ser.dropna()
+    na_count = original_len - len(data)
+
+    if na_count > 0:
+        print(f'Dropped {na_count} NA values ({na_count / original_len:.1%} of total)')
+
+    # Create figure with 2 rows (hist + boxplot)
+    fig, (ax1, ax2) = plt.subplots(
+        2, 1,
+        figsize=figsize,
+        sharex=True,
+        gridspec_kw={'height_ratios': [4, 1]}
+    )
+
+    # Histogram
+    ax1.hist(data, bins=bins)
+    ax1.set_ylabel(y_label)
+    ax1.set_title(title)
+
+    # Info about total and NAs
+    n_total = original_len
+    n_valid = len(data)
+
+    ax1.text(
+        0.98, 0.95,
+        f'n = {n_valid} (of {n_total})\n{round((n_valid/n_total)*100)} %',
+        transform=ax1.transAxes,
+        ha='right', va='top',
+        fontsize=11
+    )
+
+    # Boxplot
+    ax2.boxplot(data, vert=False, widths=0.6)
+    ax2.set_xlabel(x_label)
+    ax2.set_yticks([])  # optional: hide y-axis ticks
+
+    # Statistical info
+    stats_info = {}
+    # Outliers
+    fliers = ax2.boxplot(data, vert=False, widths=0.6)['fliers'][0].get_xdata()
+    # convert to Python int
+    fliers = [int(v) for v in fliers]
+    outlier_counts = dict(Counter(fliers))
+    stats_info['outlier_counts'] = outlier_counts
+    # Mean
+    mean = round(data.mean(), 3)
+    stats_info['mean'] = mean
+    # stddev
+    stddev = round(data.std(), 3)
+    stats_info['stddev'] = stddev
+    # Print
+    print(f'Outliers: {outlier_counts}')
+    print(f'Mean: {mean}')
+    print(f'Std dev: {stddev}')
+
+    plt.tight_layout()
+
+    # Savefig
+    if savefig:
+        plt.savefig(ff.FIGURES_DIR / dataset / f'{dataset}-{progr}-{output_name}.{output_format}', dpi=300, bbox_inches='tight')
+
+    plt.show()
