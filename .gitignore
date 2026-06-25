@@ -1,6 +1,7 @@
 # ag8l
 /**
 !/.gitignore
+!/README.md
 
 !/pyproject.toml
 !/environment.lock.yml
