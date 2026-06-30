@@ -19,6 +19,7 @@ cd smartsc
 2. Create the smartsc environment with all the dependencies:
 ```
 conda env create -f environment.lock.yml
+conda deactivate && conda activate smartsc
 ```
 
 3. Set up the folders:
