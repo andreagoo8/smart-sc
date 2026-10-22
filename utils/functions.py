@@ -438,7 +438,10 @@ def pretty_print_folder(input_dir, output_dir, indent=2):
             data = json.load(file)
 
         name = filename[:-5]  # strip ".json"
-        out_path = os.path.join(output_dir, f"{name}-pp-{indent}.json")
+        if indent == '\t':
+            out_path = os.path.join(output_dir, f"{name}-pp-{'t'}.json")
+        else:
+            out_path = os.path.join(output_dir, f"{name}-pp-{indent}.json")
 
         with open(out_path, "w", encoding="utf-8") as file:
             json.dump(data, file, indent=indent, ensure_ascii=False, sort_keys=False)

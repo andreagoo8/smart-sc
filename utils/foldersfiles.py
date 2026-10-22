@@ -12,6 +12,7 @@ EXCELS         = 'excels'
 PSEUDOPATIENTS = 'pps'
 JSONS2         = 'jsons-pp-2'
 JSONS4         = 'jsons-pp-4'
+JSONST         = 'jsons-pp-t'
 
 ESCRIBE       = '1-escribe'
 ICONS_RICOV   = '2_1-estr_icons-ricoveri'
