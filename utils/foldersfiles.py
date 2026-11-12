@@ -2,9 +2,10 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-RAW_DATA_DIR       = PROJECT_ROOT / 'data'    / '0-raw'
-PROCESSED_DATA_DIR = PROJECT_ROOT / 'data'    / '1-cleaned'
-FIGURES_DIR        = PROJECT_ROOT / 'reports' / 'figures'
+RAW_DATA_DIR               = PROJECT_ROOT / 'data'    / '0-raw'
+CLEANED_ORIGINALS_DATA_DIR = PROJECT_ROOT / 'data'    / '1-cleaned_originals'
+CLEANED_PROCESSED_DATA_DIR = PROJECT_ROOT / 'data'    / '2-cleaned_processed'
+FIGURES_DIR                = PROJECT_ROOT / 'reports' / 'figures'
 
 PARQUETS       = 'parquets'
 PICKLES        = 'pickles'
