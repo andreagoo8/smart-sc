@@ -20,25 +20,34 @@ import matplotlib.pyplot as plt
 
 
 # export functions for excel-based datasets (first 3)
-def export_func(df, filename, filetype=[], pseudopaz=''):
+def export_func(df, data_dir, filename, filetype=[], pseudopaz=''):
+    '''
+    Conveniently exports to the specified filetypes a pandas dataframe to a certain "foldersfiles" folder, with a certain name,
+
+    Takes in input:
+    - the dataframe to export
+    - one of the folders in foldersfiles in the format 'ff.<FOLDER>'
+    - the filename
+    - pseudopaz %TODO
+    '''
 
     # Parquet
     if 'parquet' in filetype:
-        df.to_parquet(ff.PROCESSED_DATA_DIR / ff.PARQUETS / f'{filename}.parquet')
+        df.to_parquet(data_dir / ff.PARQUETS / f'{filename}.parquet')
 
     # Pickle
     if 'pickle' in filetype:
-        df.to_pickle(ff.PROCESSED_DATA_DIR / ff.PICKLES / f'{filename}.pickle')
+        df.to_pickle(data_dir / ff.PICKLES / f'{filename}.pickle')
 
         if pseudopaz != '':
-            df[pseudopaz].to_pickle(ff.PROCESSED_DATA_DIR / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp.pickle')
-            df[pseudopaz].drop_duplicates().to_pickle(ff.PROCESSED_DATA_DIR / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp-uniq.pickle')
-            with open(ff.PROCESSED_DATA_DIR / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp-uniq-list.pickle', 'wb') as file:
+            df[pseudopaz].to_pickle(data_dir / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp.pickle')
+            df[pseudopaz].drop_duplicates().to_pickle(data_dir / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp-uniq.pickle')
+            with open(data_dir / ff.PICKLES / ff.PSEUDOPATIENTS / f'{filename}-pp-uniq-list.pickle', 'wb') as file:
                 pickle.dump(df[pseudopaz].drop_duplicates().tolist(), file, protocol=pickle.HIGHEST_PROTOCOL)
 
     # Excel
     if 'excel' in filetype:
-        df.to_excel(ff.PROCESSED_DATA_DIR / ff.EXCELS / f'{filename}.xlsx', sheet_name=ff.ESCRIBE, index=False)
+        df.to_excel(data_dir / ff.EXCELS / f'{filename}.xlsx', sheet_name=ff.ESCRIBE, index=False)
 
 
 # for pandas df
@@ -186,6 +195,8 @@ def json_to_df(json_files_dict, json_filenames, date_fields,
     *, parse_dates=True, letters=None, keep_NA=False, just_external=False,
 ):
     '''
+    Iterates over the json files and the transmission field instances
+
     Takes in input:
     - a dictionary {json_filename: json_file_content}
     - a list of json filenames
@@ -200,8 +211,6 @@ def json_to_df(json_files_dict, json_filenames, date_fields,
     - letters: if given with an int number, compresses the field names to the given amount of letters
     - keep_NA: if True (NOT default), adds a row of NA values for every json that lacks the given transmission subfield to check
     - just_external: if True (NOT default), adds to the df only the fields external to the transmission field
-
-    Iterates over the json files and the transmission field instances
 
     Returns a list containing dictionaries, where each one carries the informations
     of every instance of a specific transmission field,
