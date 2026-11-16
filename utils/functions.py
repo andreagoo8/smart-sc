@@ -19,10 +19,10 @@ import matplotlib.pyplot as plt
 
 
 
-# export functions for excel-based datasets (first 3)
+# conveniently exports a dataframe
 def export_func(df, data_dir, filename, filetype=[], pseudopaz=''):
     '''
-    Conveniently exports to the specified filetypes a pandas dataframe to a certain "foldersfiles" folder, with a certain name,
+    Conveniently exports to the specified filetypes a pandas dataframe to a certain "foldersfiles" folder, with a certain name
 
     Takes in input:
     - the dataframe to export
@@ -48,6 +48,30 @@ def export_func(df, data_dir, filename, filetype=[], pseudopaz=''):
     # Excel
     if 'excel' in filetype:
         df.to_excel(data_dir / ff.EXCELS / f'{filename}.xlsx', sheet_name=ff.ESCRIBE, index=False)
+
+# conveniently imports a dataframe
+def import_func(filepath):
+    '''
+    Conveniently imports an object from a parquet or pickle file.
+
+    Takes in input:
+    - the filepath, as a string or pathlib.Path, including the
+      '.parquet' or '.pickle' extension
+
+    Returns:
+    - the imported dataframe, or the stored object for pickle files
+    '''
+
+    stringpath = str(filepath)
+    if stringpath.endswith('.parquet'):
+        output = pd.read_parquet(filepath)
+    elif stringpath.endswith('.pickle'):
+        with open(filepath, 'rb') as file:
+            output = pickle.load(file)
+    else:
+        raise ValueError("Unsupported file extension: expected '.parquet' or '.pickle'")
+
+    return output
 
 
 # for pandas df
